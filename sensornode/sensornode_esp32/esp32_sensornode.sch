@@ -245,7 +245,7 @@ U 1 1 5E5248FF
 P 1550 6400
 F 0 "J3" H 1500 5583 50  0000 C CNN
 F 1 "Micro_SD_Card" H 1500 5674 50  0000 C CNN
-F 2 "Connector_Card:microSD_HC_Wuerth_693072010801" H 2700 6700 50  0001 C CNN
+F 2 "Connector_Card:microSD_HC_Hirose_DM3D-SF" H 2700 6700 50  0001 C CNN
 F 3 "http://katalog.we-online.de/em/datasheet/693072010801.pdf" H 1550 6400 50  0001 C CNN
 	1    1550 6400
 	-1   0    0    1   
