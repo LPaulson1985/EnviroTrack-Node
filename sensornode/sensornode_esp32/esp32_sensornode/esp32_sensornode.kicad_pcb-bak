@@ -86,9 +86,9 @@
       (subtractmaskfromsilk false)
       (outputformat 1)
       (mirror false)
-      (drillshape 1)
+      (drillshape 0)
       (scaleselection 1)
-      (outputdirectory ""))
+      (outputdirectory "position"))
   )
 
   (net 0 "")
@@ -384,6 +384,7 @@
 
   (module logo:diamond (layer F.Cu) (tedit 0) (tstamp 5E82D7D3)
     (at 109.6519 54.5225)
+    (attr smd)
     (fp_text reference G*** (at 0 0) (layer F.SilkS) hide
       (effects (font (size 1.524 1.524) (thickness 0.3)))
     )
@@ -1290,6 +1291,7 @@
 
   (module progcode-resources:pc3 (layer F.Cu) (tedit 0) (tstamp 5E82CEA3)
     (at 111.6839 49.1123)
+    (attr smd)
     (fp_text reference G*** (at 0 0) (layer F.SilkS) hide
       (effects (font (size 1.524 1.524) (thickness 0.3)))
     )
@@ -3397,7 +3399,7 @@
     (tags resistor)
     (path /5E8E0C26)
     (attr smd)
-    (fp_text reference R1 (at 0.9398 -1.3843) (layer F.SilkS)
+    (fp_text reference R1 (at 1.4859 -1.4478) (layer F.SilkS)
       (effects (font (size 1 1) (thickness 0.15)))
     )
     (fp_text value 220R (at 0 1.43) (layer F.Fab)
@@ -3723,7 +3725,7 @@
     (tags SOT-23)
     (path /5EA79CCF)
     (attr smd)
-    (fp_text reference U6 (at -0.1905 2.4638 90) (layer F.SilkS)
+    (fp_text reference U6 (at 0 -2.5 90) (layer F.SilkS)
       (effects (font (size 1 1) (thickness 0.15)))
     )
     (fp_text value TPS3839DBZ (at 0 2.5 90) (layer F.Fab)
@@ -4560,7 +4562,7 @@
   (segment (start 103.086 50.9488) (end 103.1749 50.8599) (width 0.25) (layer F.Cu) (net 61) (status 30))
   (segment (start 103.086 52.7318) (end 103.086 50.9488) (width 0.25) (layer F.Cu) (net 61) (status 30))
 
-  (zone (net 6) (net_name GND) (layer B.Cu) (tstamp 5E83EA9D) (hatch edge 0.508)
+  (zone (net 6) (net_name GND) (layer B.Cu) (tstamp 5E852ABD) (hatch edge 0.508)
     (connect_pads (clearance 0.508))
     (min_thickness 0.254)
     (fill yes (arc_segments 32) (thermal_gap 0.508) (thermal_bridge_width 0.508) (smoothing chamfer))
