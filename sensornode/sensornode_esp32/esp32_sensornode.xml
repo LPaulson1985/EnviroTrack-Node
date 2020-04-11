@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <export version="D">
   <design>
-    <source>/home/rmd6502/Arduino/envirosense/esp32_sensornode/esp32_sensornode.sch</source>
-    <date>Wed 01 Apr 2020 01:52:16 PM PDT</date>
+    <source>/home/rmd6502/Documents/Builds/EnviroTrack-Node/sensornode/sensornode_esp32/esp32_sensornode.sch</source>
+    <date>Sat 11 Apr 2020 12:52:59 PM PDT</date>
     <tool>Eeschema 5.1.4+dfsg1-1</tool>
     <sheet number="1" name="/" tstamps="/">
       <title_block>
@@ -51,7 +51,7 @@
     </comp>
     <comp ref="J3">
       <value>Micro_SD_Card</value>
-      <footprint>Connector_Card:microSD_HC_Wuerth_693072010801</footprint>
+      <footprint>Connector_Card:microSD_HC_Hirose_DM3D-SF</footprint>
       <datasheet>http://katalog.we-online.de/em/datasheet/693072010801.pdf</datasheet>
       <libsource lib="Connector" part="Micro_SD_Card" description="Micro SD Card Socket"/>
       <sheetpath names="/" tstamps="/"/>
@@ -84,7 +84,7 @@
       <footprint>Package_TO_SOT_SMD:SOT-223-3_TabPin2</footprint>
       <datasheet>http://www.ti.com/lit/ds/symlink/lm1117.pdf</datasheet>
       <fields>
-        <field name="LCSC">C126019</field>
+        <field name="LCSC">C23984</field>
       </fields>
       <libsource lib="Regulator_Linear" part="LM1117-3.3" description="800mA Low-Dropout Linear Regulator, 3.3V fixed output, TO-220/TO-252/TO-263/SOT-223"/>
       <sheetpath names="/" tstamps="/"/>
@@ -119,7 +119,7 @@
       <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
       <datasheet>~</datasheet>
       <fields>
-        <field name="LCSC">C167329</field>
+        <field name="LCSC">C23630</field>
       </fields>
       <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
       <sheetpath names="/" tstamps="/"/>
@@ -130,7 +130,7 @@
       <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
       <datasheet>~</datasheet>
       <fields>
-        <field name="LCSC">C167329</field>
+        <field name="LCSC">C23630</field>
       </fields>
       <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
       <sheetpath names="/" tstamps="/"/>
@@ -141,7 +141,7 @@
       <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
       <datasheet>~</datasheet>
       <fields>
-        <field name="LCSC">C195004</field>
+        <field name="LCSC">C19702</field>
       </fields>
       <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
       <sheetpath names="/" tstamps="/"/>
@@ -152,7 +152,7 @@
       <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
       <datasheet>~</datasheet>
       <fields>
-        <field name="LCSC">C195004</field>
+        <field name="LCSC">C19702</field>
       </fields>
       <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
       <sheetpath names="/" tstamps="/"/>
@@ -163,7 +163,7 @@
       <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
       <datasheet>~</datasheet>
       <fields>
-        <field name="LCSC">C167329</field>
+        <field name="LCSC">C23630</field>
       </fields>
       <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
       <sheetpath names="/" tstamps="/"/>
@@ -207,7 +207,7 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <datasheet>~</datasheet>
       <fields>
-        <field name="LCSC">C191318</field>
+        <field name="LCSC">C25804</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
       <sheetpath names="/" tstamps="/"/>
@@ -218,7 +218,7 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <datasheet>~</datasheet>
       <fields>
-        <field name="LCSC">C191318</field>
+        <field name="LCSC">C25804</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
       <sheetpath names="/" tstamps="/"/>
@@ -229,7 +229,7 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <datasheet>~</datasheet>
       <fields>
-        <field name="LCSC">C191318</field>
+        <field name="LCSC">C25804</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
       <sheetpath names="/" tstamps="/"/>
@@ -261,6 +261,9 @@
       <value>USB_B_Mini</value>
       <footprint>Connector_USB:USB_Mini-B_Lumberg_2486_01_Horizontal</footprint>
       <datasheet>~</datasheet>
+      <fields>
+        <field name="LCSC">C46391</field>
+      </fields>
       <libsource lib="Connector" part="USB_B_Mini" description="USB Mini Type B connector"/>
       <sheetpath names="/" tstamps="/"/>
       <tstamp>5E56028C</tstamp>
@@ -281,7 +284,7 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <datasheet>~</datasheet>
       <fields>
-        <field name="LCSC">C191318</field>
+        <field name="LCSC">C25804</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
       <sheetpath names="/" tstamps="/"/>
@@ -292,7 +295,7 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <datasheet>~</datasheet>
       <fields>
-        <field name="LCSC">C427267</field>
+        <field name="LCSC">C22962</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
       <sheetpath names="/" tstamps="/"/>
@@ -314,7 +317,7 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <datasheet>~</datasheet>
       <fields>
-        <field name="LCSC">C191318</field>
+        <field name="LCSC">C25804</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
       <sheetpath names="/" tstamps="/"/>
@@ -336,7 +339,7 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <datasheet>~</datasheet>
       <fields>
-        <field name="LCSC">C191318</field>
+        <field name="LCSC">C25804</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
       <sheetpath names="/" tstamps="/"/>
@@ -347,7 +350,7 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <datasheet>~</datasheet>
       <fields>
-        <field name="LCSC">C191318</field>
+        <field name="LCSC">C25804</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
       <sheetpath names="/" tstamps="/"/>
@@ -358,7 +361,7 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <datasheet>~</datasheet>
       <fields>
-        <field name="LCSC">C427267</field>
+        <field name="LCSC">C22962</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
       <sheetpath names="/" tstamps="/"/>
@@ -369,7 +372,7 @@
       <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
       <datasheet>~</datasheet>
       <fields>
-        <field name="LCSC">C427267</field>
+        <field name="LCSC">C22962</field>
       </fields>
       <libsource lib="Device" part="R" description="Resistor"/>
       <sheetpath names="/" tstamps="/"/>

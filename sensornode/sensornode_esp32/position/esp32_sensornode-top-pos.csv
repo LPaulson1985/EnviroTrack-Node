@@ -4,8 +4,6 @@ Designator,Val,Package,Mid X,Mid Y,Rotation,Layer
 "C3","2.2u 5v","C_0603_1608Metric",9.499500,-15.684800,180.000000,top
 "C4","2.2u 10v","C_0603_1608Metric",18.148300,-15.862600,0.000000,top
 "C5","10u 5v","C_0603_1608Metric",47.980600,-30.594600,0.000000,top
-"G***","LOGO","diamond",59.651900,-12.522500,0.000000,top
-"G***","LOGO","pc3",61.683900,-7.112300,0.000000,top
 "J3","Micro_SD_Card","microSD_HC_Hirose_DM3D-SF",13.107500,-26.626900,0.000000,top
 "J4","USB_B_Mini","USB_Mini-B_Lumberg_2486_01_Horizontal",24.973200,-5.998200,180.000000,top
 "Q1","NDS3332P","SOT-23",57.750200,-21.780800,0.000000,top
