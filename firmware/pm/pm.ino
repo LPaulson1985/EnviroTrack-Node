@@ -4,14 +4,15 @@
 #include <AceTime.h>
 
 #include <Arduino_JSON.h>
-
+#include <SoftwareSerial.h> // for circular_queue
 #include <ESP_WiFiManager.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoOTA.h>
 #include <deque>
-#include <sps30.h>
+#include <Sds011.h>
 
+#include "bluetooth.h"
 #include "config.h"
 
 using namespace ace_time;
@@ -34,9 +35,8 @@ enum States {
   ERRORSTATE
 };
 
-// SSID and PW for your Router
-String Router_SSID;
-String Router_Pass;
+/** Build time */
+const char compileDate[] = __DATE__ " " __TIME__;
 
 States currentState = IDLE;
 uint32_t nextStateTime = 0;
@@ -57,7 +57,9 @@ int sample_index = 0;
 
 WiFiClient espClient;
 HTTPClient client;
-SPS30 sps30;
+SDS011 sds011;
+
+
 
 void setup() {
   // put your setup code here, to run once:
