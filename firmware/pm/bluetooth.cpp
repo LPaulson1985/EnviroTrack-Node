@@ -1,8 +1,16 @@
 #include <Arduino.h>
+
 // Includes for BLE
 #include <BLEUtils.h>
 #include <BLEAdvertising.h>
+#include <Preferences.h>
+
+#include <nvs.h>
+#include <nvs_flash.h>
+
 #include "bluetooth.h"
+
+void createName();
 
 /** BLE Advertiser */
 static BLEAdvertising* pAdvertising;
@@ -10,13 +18,18 @@ static BLEAdvertising* pAdvertising;
 static BLEService *pService;
 /** BLE Server */
 static BLEServer *pServer;
-
 /** Characteristic for digital output */
-BLECharacteristic *pCharacteristicWiFi;
+static BLECharacteristic *pCharacteristicWiFi;
 
 /** Unique device name */
 static char apName[] = "ESP32-xxxxxxxxxxxx";
 
+bool hasCredentials;
+static BLECallbacks *callbacks = nullptr;
+
+void setCallbacks(BLECallbacks *newCallbacks) {
+  callbacks = newCallbacks;
+}
 /**
  * MyServerCallbacks
  * Callbacks for client connection and disconnection
@@ -75,7 +88,9 @@ void MyCallbackHandler::onWrite(BLECharacteristic *pCharacteristic) {
       Serial.println("Received over bluetooth:");
       Serial.println("primary SSID: "+ssidPrim+" password: "+pwPrim);
       Serial.println("secondary SSID: "+ssidSec+" password: "+pwSec);
-      connStatusChanged = true;
+      if (callbacks) {
+        callbacks->preferencesChanged();
+      }
       hasCredentials = true;
     } else if (jsonIn.containsKey("erase")) {
       Serial.println("Received erase command");
@@ -83,7 +98,9 @@ void MyCallbackHandler::onWrite(BLECharacteristic *pCharacteristic) {
       preferences.begin("WiFiCred", false);
       preferences.clear();
       preferences.end();
-      connStatusChanged = true;
+      if (callbacks) {
+        callbacks->preferencesChanged();
+      }
       hasCredentials = false;
       ssidPrim = "";
       pwPrim = "";
@@ -96,7 +113,6 @@ void MyCallbackHandler::onWrite(BLECharacteristic *pCharacteristic) {
       err=nvs_flash_erase();
       Serial.println("nvs_flash_erase: " + err);
     } else if (jsonIn.containsKey("reset")) {
-      WiFi.disconnect();
       esp_restart();
     }
   } else {
@@ -115,9 +131,16 @@ void MyCallbackHandler::onRead(BLECharacteristic *pCharacteristic) {
   jsonOut["pwPrim"] = pwPrim;
   jsonOut["ssidSec"] = ssidSec;
   jsonOut["pwSec"] = pwSec;
+  if (callbacks) {
+    ipAddress = callbacks->getWifiStatus();
+  } else {
+    ipAddress = "";
+  }
+  
+  isConnected = (ipAddress.length() > 0);
   jsonOut["connected"] = isConnected;
   if (isConnected) {
-    jsonOut["ipAddress"] = WiFi.localIP().toString();
+    jsonOut["ipAddress"] = ipAddress;
   }
   // Convert JSON object into a string
   serializeJson(jsonOut, wifiCredentials);
@@ -141,6 +164,8 @@ void MyCallbackHandler::onRead(BLECharacteristic *pCharacteristic) {
  * Start BLE server and service advertising
  */
 void initBLE() {
+  createName();
+  
   // Initialize BLE and set output power
   BLEDevice::init(apName);
   BLEDevice::setPower(ESP_PWR_LVL_P7);

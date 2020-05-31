@@ -3,13 +3,14 @@
 #define ACE_TIME_NTP_CLOCK_DEBUG 1
 #include <AceTime.h>
 
-#include <Arduino_JSON.h>
+#include <ArduinoJson.h>
 #include <SoftwareSerial.h> // for circular_queue
 #include <ESP_WiFiManager.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoOTA.h>
 #include <deque>
+#include <Preferences.h>
 #include <Sds011.h>
 
 #include "bluetooth.h"
@@ -22,6 +23,18 @@ static BasicZoneProcessor pacificProcessor;
 static NtpClock ntpClock;
 SystemClockLoop systemClock(&ntpClock, nullptr /*backup*/);
 
+struct SensorValues {
+  double pm25;
+  double pm10;
+  int numSamples;
+
+  SensorValues(int ns, double p10, double p25) : numSamples(ns), pm10(p10), pm25(p25) {}
+};
+
+constexpr int pm_tablesize = 20;
+int pm25_table[pm_tablesize];
+int pm10_table[pm_tablesize];
+
 #define PIN_LED           2
 #define LED_ON      HIGH
   #define LED_OFF     LOW  
@@ -30,10 +43,30 @@ SystemClockLoop systemClock(&ntpClock, nullptr /*backup*/);
 
 enum States {
   IDLE,
+  WIFI_CONNECTING,
+  WARMUP,
   READING,
   RECONNECTING,
+  WIFI_WAITING_CREDENTIALS,
   ERRORSTATE
 };
+
+// ms from setting one of the states above until the state should transition to the next
+uint32_t transitionDelaysMs[] = {
+//IDLE   CONN   WARMUP READ   RECON ERROR
+  60000, 10000, 10000, 30000, 5000, 99999
+};
+
+#define SDS_PIN_RX 16
+#define SDS_PIN_TX 17
+
+#ifdef ESP32
+HardwareSerial& serialSDS(Serial2);
+Sds011Async< HardwareSerial > sds011(serialSDS);
+#else
+SoftwareSerial serialSDS;
+Sds011Async< SoftwareSerial > sds011(serialSDS);
+#endif
 
 /** Build time */
 const char compileDate[] = __DATE__ " " __TIME__;
@@ -41,9 +74,6 @@ const char compileDate[] = __DATE__ " " __TIME__;
 States currentState = IDLE;
 uint32_t nextStateTime = 0;
 
-uint32_t transitionDelaysMs[] = {
-  60000, 20000, 5000, 99999
-};
 // Transistor to control power to the sensor
 const uint8_t sensor = 4;
 
@@ -57,18 +87,18 @@ int sample_index = 0;
 
 WiFiClient espClient;
 HTTPClient client;
-SDS011 sds011;
-
-
 
 void setup() {
   // put your setup code here, to run once:
   pinMode(sensor, OUTPUT);
   Serial.begin(115200);
+
+  initBLE();
+
   Serial.println("starting wifiManager");
   
   // Now go back to our normal connection.
-  WifiConnect();
+  setState(WIFI_CONNECTING);
   
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
@@ -109,118 +139,70 @@ void setup() {
     });
     ArduinoOTA.begin();
 
-    // set driver debug level
-    sps30.EnableDebugging(DEBUG);
-    if (sps30.begin(SP30_COMMS) == false) {
-      Serial.println("could not initialize communication channel.");
-      currentState = ERRORSTATE;
-    }
-    if (sps30.probe() == false) {
-      Serial.println("could not probe / connect with SPS30.");
-      currentState = ERRORSTATE;
-    }
-    else
-      Serial.println(F("Detected SPS30."));
+  Serial.println("initializing sds011");
 
+ #ifdef ESP32
+    serialSDS.begin(9600, SERIAL_8N1, SDS_PIN_RX, SDS_PIN_TX);
+    delay(100);
+#else
+    serialSDS.begin(9600, SWSERIAL_8N1, SDS_PIN_RX, SDS_PIN_TX, false, 192);
+#endif
+  Sds011::Report_mode report_mode;
+  if (!sds011.get_data_reporting_mode(report_mode)) {
+      Serial.println("Sds011::get_data_reporting_mode() failed");
+  }
+  if (Sds011::REPORT_ACTIVE != report_mode) {
+      Serial.println("Turning on Sds011::REPORT_ACTIVE reporting mode");
+      if (!sds011.set_data_reporting_mode(Sds011::REPORT_ACTIVE)) {
+          Serial.println("Sds011::set_data_reporting_mode(Sds011::REPORT_ACTIVE) failed");
+      }
+  }
 }
 
 void loop() {
   ArduinoOTA.handle();
   systemClock.loop();
+  if (currentState == WIFI_CONNECTING) {
+    if (WiFi.status == WL_CONNECTED) {
+      Serial.print("connected. Local IP: ");
+      Serial.println(WiFi.localIP());
+      setState(IDLE);
+      return;
+    } else {
+      Serial.print("connecting. Status: ");
+      Serial.println(ESP_wifiManager.getStatus(WiFi.status()));
+    }
+  }
   if (millis() < nextStateTime && currentState != READING) return;
   switch (currentState) {
     case IDLE:
       Serial.println("Transition to Reading");
-      if (sps30.start() == true)
+      if (sds011.set_sleep(false))
         Serial.println(F("Measurement started"));
       else {
         Serial.println("Could NOT start measurement");
-      currentState = ERRORSTATE;
+      setState(ERRORSTATE);
     }
-      currentState = READING;
+      setState(WARMUP);
       break;
+    case WARMUP: setState(READING); break;
     case READING: {
-      
-    //      Serial.print("reading ");
-    //      Serial.println(reading);
-    /*
-     * [
-          {
-            "app_key": "app",
-            "net_key": "net",
-            "device_id": "esp8266-mq135-rmd",
-            "latitude": 29.774975,
-            "longitude":  -95.351613,
-            "captured_at": "2019-08-22 21:03:03 -0700",
-            "channels": {
-              "ch1": 0.414001
-            }
-           },
-          
-          {
-            "app_key": "app",
-            "net_key": "net",
-            "device_id": "esp8266-mq135-rmd",
-            "latitude": 29.774975,
-            "longitude":  -95.351613,
-            "captured_at": "2019-08-22 21:05:03 -0700",
-            "channels": {
-              "ch1": 0.514001
-            }
-           }
-        ]
-     */
-      acetime_t epochSeconds = systemClock.getNow();
-      auto pacificTz = TimeZone::forZoneInfo(&zonedb::kZoneAmerica_Los_Angeles,
-        &pacificProcessor);
-      auto pacificTime = ZonedDateTime::forEpochSeconds(epochSeconds, pacificTz);
-      char timeBuf[100];
-      CStringBuilder timePrint(timeBuf, sizeof(timeBuf));
-      pacificTime.printTo(timePrint);
-      // Single reading, and an array of readings
-      JSONVar reading, readings;
-      reading["app_key"] = "app";
-      reading["net_key"] = "net";
-      reading["device_id"] = "esp32-sps30-rmd";
-      reading["captured_at"] = String(timeBuf);
-      JSONVar channels;
-      sps_values *val = read_all();
-      if (val != nullptr) {
-        channels["ch1"] = String(val->MassPM1);
-        channels["ch2"] = String(val->MassPM2);
-        channels["ch3"] = String(val->MassPM4);
-        channels["ch4"] = String(val->MassPM10);
-        channels["ch5"] = String(val->NumPM0);
-        channels["ch6"] = String(val->NumPM1);
-        channels["ch7"] = String(val->NumPM2);
-        channels["ch8"] = String(val->NumPM4);
-        channels["ch9"] = String(val->NumPM10);
-        reading["channels"] = channels;
-        readings[0] = reading;
-        Serial.print("sending bytes "); Serial.println(JSON.stringify(readings));
-        if (client.begin(espClient, apiServer)) {
-          client.addHeader("Content-Type", "application/json");
-          int status = client.POST(JSON.stringify(readings));
-          Serial.print("send status "); Serial.println(status);
-        } else {
-          Serial.println("Failed to connect to server");
-        }
-      }
-      
-      Serial.print("Transition to IDLE, deep sleep for");
-      Serial.print(sleepTimeUS);
-      Serial.println("us");
-      currentState = IDLE;
+      setState(IDLE);
       esp_wifi_stop();
-      sps30.stop();
+      sds011.set_sleep(true);
       esp_deep_sleep(sleepTimeUS);
       break;
     }
     case RECONNECTING:
       Serial.println("transition to reading");
-      currentState = READING;
+      setState(READING);
       break;
     case ERRORSTATE:
+      break;
+    case WIFI_CONNECTING:
+      // if we're here, we've timed out. take readings, but don't try to send until we're connected.
+      Serial.println("Timeout on wifi connect. Going to AP mode.");
+      setState(WIFI_WAITING_CREDENTIALS);
       break;
   }
   nextStateTime = millis() + transitionDelaysMs[currentState];
@@ -229,84 +211,105 @@ void loop() {
   Serial.print("current millis "); Serial.println(millis());
 }
 
-/**
- * @brief : read and display all values
- */
-sps_values* read_all()
-{
-  static bool header = true;
-  uint8_t ret, error_cnt = 0;
-  static struct sps_values val;
+// CurrentState should be considered readonly except here.
+// perhaps this should be an object.
+void setState(States newState) {
+  if (currentState == newState) return;
+  States prevState = currentState;
+  currentState = newState;
 
-  // loop to get data
-  do {
-
-    ret = sps30.GetValues(&val);
-
-    // data might not have been ready
-    if (ret == ERR_DATALENGTH){
-
-        if (error_cnt++ > 3) {
-          ErrtoMess("Error during reading values: ",ret);
-          return(nullptr);
-        }
-        delay(1000);
-    }
-
-    // if other error
-    else if(ret != ERR_OK) {
-      ErrtoMess("Error during reading values: ",ret);
-      return(nullptr);
-    }
-
-  } while (ret != ERR_OK);
-
-  // only print header first time
-  if (header) {
-    Serial.println(F("-------------Mass -----------    ------------- Number --------------   -Average-"));
-    Serial.println(F("     Concentration [μg/m3]             Concentration [#/cm3]             [μm]"));
-    Serial.println(F("P1.0\tP2.5\tP4.0\tP10\tP0.5\tP1.0\tP2.5\tP4.0\tP10\tPartSize\n"));
-    header = false;
+  switch (newState) 
+  {
+  case WIFI_CONNECTING:
+    WifiConnect();
+    break;
+  case WIFI_WAITING_CREDENTIALS:
+    //it starts an access point 
+    //and goes into a blocking loop awaiting configuration
+    if (!ESP_wifiManager.startConfigPortal(apName, apPass)) 
+      Serial.println("Not connected to WiFi but continuing anyway.");
+    else 
+      Serial.println("WiFi connected...yeey :)"); 
+    break;
+  
+  default:
+    break;
   }
+}
 
-  Serial.print(val.MassPM1);
-  Serial.print(F("\t"));
-  Serial.print(val.MassPM2);
-  Serial.print(F("\t"));
-  Serial.print(val.MassPM4);
-  Serial.print(F("\t"));
-  Serial.print(val.MassPM10);
-  Serial.print(F("\t"));
-  Serial.print(val.NumPM0);
-  Serial.print(F("\t"));
-  Serial.print(val.NumPM1);
-  Serial.print(F("\t"));
-  Serial.print(val.NumPM2);
-  Serial.print(F("\t"));
-  Serial.print(val.NumPM4);
-  Serial.print(F("\t"));
-  Serial.print(val.NumPM10);
-  Serial.print(F("\t"));
-  Serial.print(val.PartSize);
-  Serial.print(F("\n"));
-
-  return &val;
+void send_data(SensorValues val) {
+  if (val) {
+    acetime_t epochSeconds = systemClock.getNow();
+    auto pacificTz = TimeZone::forZoneInfo(&zonedb::kZoneAmerica_Los_Angeles,
+      &pacificProcessor);
+    auto pacificTime = ZonedDateTime::forEpochSeconds(epochSeconds, pacificTz);
+    char timeBuf[100];
+    CStringBuilder timePrint(timeBuf, sizeof(timeBuf));
+    pacificTime.printTo(timePrint);
+    // Single reading, and an array of readings
+    DynamicJsonDocument readingsDoc(1024);
+    JsonArray readings = readingsDoc.to<JsonArray>();
+    JsonObject reading = readings.createNestedObject();
+    reading["app_key"] = "app";
+    reading["net_key"] = "net";
+    reading["device_id"] = "esp32-sds011-rmd";
+    reading["captured_at"] = String(timeBuf);
+    JsonObject channels = reading.createNestedObject("channels");
+    channels["ch1"] = String(val->pm25);
+    channels["ch2"] = String(val->pm10);
+    Serial.print("sending bytes "); serializeJsonPretty(readings, Serial);
+    if (client.begin(espClient, apiServer)) {
+      client.addHeader("Content-Type", "application/json");
+      int status = serializeJson(readings, client);
+      Serial.print("send status "); Serial.println(status);
+    } else {
+      Serial.println("Failed to connect to server");
+    }
+    
+    Serial.print("Transition to IDLE, deep sleep for");
+    Serial.print(sleepTimeUS);
+    Serial.println("us");
+  }
 }
 
 /**
- *  @brief : display error message
- *  @param mess : message to display
- *  @param r : error code
- *
+ * @brief : read and display all values
  */
-void ErrtoMess(char *mess, uint8_t r)
+void read_all()
 {
-  char buf[80];
+  static bool header = true;
+  uint8_t ret, error_cnt = 0;
 
-  Serial.print(mess);
+  // loop to get data
+  sds011.on_query_data_auto_completed([](int n) {
+      Serial.println("Begin Handling SDS011 query data");
+      int pm25;
+      int pm10;
+      Serial.print("n = "); Serial.println(n);
+      if (sds011.filter_data(n, pm25_table, pm10_table, pm25, pm10) &&
+          !isnan(pm10) && !isnan(pm25)) {
+          Serial.print("PM10: ");
+          Serial.println(float(pm10) / 10);
+          Serial.print("PM2.5: ");
+          Serial.println(float(pm25) / 10);
+      }
+      Serial.println("End Handling SDS011 query data");
 
-  sps30.GetErrDescription(r, buf, 80);
-  Serial.println(buf);
+      // only print header first time
+      if (header) {
+        Serial.println(F("-------------Mass -----------    ------------- Number --------------   -Average-"));
+        Serial.println(F("     Concentration [μg/m3]             Concentration [#/cm3]             [μm]"));
+        Serial.println(F("P1.0\tP2.5\tP4.0\tP10\tP0.5\tP1.0\tP2.5\tP4.0\tP10\tPartSize\n"));
+        header = false;
+      }
+      SensorValues sv(n, pm10, pm25);
+      send_data(sv);
+  });
+
+  if (!sds011.query_data_auto_async(pm_tablesize, pm25_table, pm10_table)) {
+      Serial.println("measurement capture start failed");
+  }
+
 }
 
 void WifiConnect()
@@ -329,27 +332,12 @@ void WifiConnect()
   
   if (Router_SSID == "")
   {
-    Serial.println("We haven't got any access point credentials, so get them now");   
-     
-    digitalWrite(PIN_LED, LED_ON); // Turn led on as we are in configuration mode.
-    
-    //it starts an access point 
-    //and goes into a blocking loop awaiting configuration
-    if (!ESP_wifiManager.startConfigPortal(apName, apPass)) 
-      Serial.println("Not connected to WiFi but continuing anyway.");
-    else 
-      Serial.println("WiFi connected...yeey :)");    
+    Serial.println("We haven't got any access point credentials, so get them now");       
+    setState(WIFI_WAITING_CREDENTIALS);
+    return;
   }
-
-  digitalWrite(PIN_LED, LED_OFF); // Turn led off as we are not in configuration mode.
-  
-  #define WIFI_CONNECT_TIMEOUT        30000L
-  #define WHILE_LOOP_DELAY            200L
-  #define WHILE_LOOP_STEPS            (WIFI_CONNECT_TIMEOUT / ( 3 * WHILE_LOOP_DELAY ))
-  
-  uint32_t startedAt = millis();
-  
-  while ( (WiFi.status() != WL_CONNECTED) && (millis() - startedAt < WIFI_CONNECT_TIMEOUT ) )
+    
+  if ( (WiFi.status() != WL_CONNECTED) )
   {   
     WiFi.mode(WIFI_STA);
     WiFi.persistent (true);
@@ -359,23 +347,32 @@ void WifiConnect()
     Serial.println(Router_SSID);
   
     WiFi.begin(Router_SSID.c_str(), Router_Pass.c_str());
-
-    int i = 0;
-    while((!WiFi.status() || WiFi.status() >= WL_DISCONNECTED) && i++ < WHILE_LOOP_STEPS)
-    {
-      delay(WHILE_LOOP_DELAY);
-    }    
   }
+}
 
-  Serial.print("After waiting ");
-  Serial.print((millis()- startedAt) / 1000);
-  Serial.print(" secs more in setup(), connection result is ");
+void getPrefs() {
+  Preferences preferences;
+	preferences.begin("WiFiCred", false);
+	bool hasPref = preferences.getBool("valid", false);
+	if (hasPref) {
+		ssidPrim = preferences.getString("ssidPrim","");
+		ssidSec = preferences.getString("ssidSec","");
+		pwPrim = preferences.getString("pwPrim","");
+		pwSec = preferences.getString("pwSec","");
 
-  if (WiFi.status() == WL_CONNECTED)
-  {
-    Serial.print("connected. Local IP: ");
-    Serial.println(WiFi.localIP());
-  }
-  else
-    Serial.println(ESP_wifiManager.getStatus(WiFi.status()));
+		if (ssidPrim.equals("") 
+				|| pwPrim.equals("")
+				/* || ssidSec.equals("")
+				|| pwSec.equals("") */) {
+			Serial.println("Found preferences but credentials are invalid");
+		} else {
+			Serial.println("Read from preferences:");
+			Serial.println("primary SSID: "+ssidPrim+" password: "+pwPrim);
+			Serial.println("secondary SSID: "+ssidSec+" password: "+pwSec);
+			hasCredentials = true;
+		}
+	} else {
+		Serial.println("Could not find preferences, need send data over BLE");
+	}
+	preferences.end();
 }
