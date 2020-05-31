@@ -23,6 +23,8 @@ static BasicZoneProcessor pacificProcessor;
 static NtpClock ntpClock;
 SystemClockLoop systemClock(&ntpClock, nullptr /*backup*/);
 
+ESP_WiFiManager ESP_wifiManager;
+
 struct SensorValues {
   double pm25;
   double pm10;
@@ -163,7 +165,7 @@ void loop() {
   ArduinoOTA.handle();
   systemClock.loop();
   if (currentState == WIFI_CONNECTING) {
-    if (WiFi.status == WL_CONNECTED) {
+    if (WiFi.status() == WL_CONNECTED) {
       Serial.print("connected. Local IP: ");
       Serial.println(WiFi.localIP());
       setState(IDLE);
@@ -227,9 +229,9 @@ void setState(States newState) {
     //it starts an access point 
     //and goes into a blocking loop awaiting configuration
     if (!ESP_wifiManager.startConfigPortal(apName, apPass)) 
-      Serial.println("Not connected to WiFi but continuing anyway.");
+      Serial.println("Failed to start config portal.");
     else 
-      Serial.println("WiFi connected...yeey :)"); 
+      Serial.println("Config portal started :)"); 
     break;
   
   default:
@@ -238,38 +240,36 @@ void setState(States newState) {
 }
 
 void send_data(SensorValues val) {
-  if (val) {
-    acetime_t epochSeconds = systemClock.getNow();
-    auto pacificTz = TimeZone::forZoneInfo(&zonedb::kZoneAmerica_Los_Angeles,
-      &pacificProcessor);
-    auto pacificTime = ZonedDateTime::forEpochSeconds(epochSeconds, pacificTz);
-    char timeBuf[100];
-    CStringBuilder timePrint(timeBuf, sizeof(timeBuf));
-    pacificTime.printTo(timePrint);
-    // Single reading, and an array of readings
-    DynamicJsonDocument readingsDoc(1024);
-    JsonArray readings = readingsDoc.to<JsonArray>();
-    JsonObject reading = readings.createNestedObject();
-    reading["app_key"] = "app";
-    reading["net_key"] = "net";
-    reading["device_id"] = "esp32-sds011-rmd";
-    reading["captured_at"] = String(timeBuf);
-    JsonObject channels = reading.createNestedObject("channels");
-    channels["ch1"] = String(val->pm25);
-    channels["ch2"] = String(val->pm10);
-    Serial.print("sending bytes "); serializeJsonPretty(readings, Serial);
-    if (client.begin(espClient, apiServer)) {
-      client.addHeader("Content-Type", "application/json");
-      int status = serializeJson(readings, client);
-      Serial.print("send status "); Serial.println(status);
-    } else {
-      Serial.println("Failed to connect to server");
-    }
-    
-    Serial.print("Transition to IDLE, deep sleep for");
-    Serial.print(sleepTimeUS);
-    Serial.println("us");
+  acetime_t epochSeconds = systemClock.getNow();
+  auto pacificTz = TimeZone::forZoneInfo(&zonedb::kZoneAmerica_Los_Angeles,
+    &pacificProcessor);
+  auto pacificTime = ZonedDateTime::forEpochSeconds(epochSeconds, pacificTz);
+  char timeBuf[100];
+  CStringBuilder timePrint(timeBuf, sizeof(timeBuf));
+  pacificTime.printTo(timePrint);
+  // Single reading, and an array of readings
+  DynamicJsonDocument readingsDoc(1024);
+  JsonArray readings = readingsDoc.to<JsonArray>();
+  JsonObject reading = readings.createNestedObject();
+  reading["app_key"] = "app";
+  reading["net_key"] = "net";
+  reading["device_id"] = "esp32-sds011-rmd";
+  reading["captured_at"] = String(timeBuf);
+  JsonObject channels = reading.createNestedObject("channels");
+  channels["ch1"] = String(val.pm25);
+  channels["ch2"] = String(val.pm10);
+  Serial.print("sending bytes "); serializeJsonPretty(readings, Serial);
+  if (client.begin(espClient, apiServer)) {
+    client.addHeader("Content-Type", "application/json");
+    int status = serializeJson(readings, client.getStream());
+    Serial.print("send status "); Serial.println(status);
+  } else {
+    Serial.println("Failed to connect to server");
   }
+  
+  Serial.print("Transition to IDLE, deep sleep for");
+  Serial.print(sleepTimeUS);
+  Serial.println("us");
 }
 
 /**
@@ -315,14 +315,13 @@ void read_all()
 void WifiConnect()
 {
   //Local intialization. Once its business is done, there is no need to keep it around
-  ESP_WiFiManager ESP_wifiManager;
   String ssid;
 
   // We can't use WiFi.SSID() in ESP32as it's only valid after connected. 
   // SSID and Password stored in ESP32 wifi_ap_record_t and wifi_config_t are also cleared in reboot
   // Have to create a new function to store in EEPROM/SPIFFS for this purpose
-  Router_SSID = ESP_wifiManager.WiFi_SSID();
-  Router_Pass = ESP_wifiManager.WiFi_Pass();
+  String Router_SSID = ESP_wifiManager.WiFi_SSID();
+  String Router_Pass = ESP_wifiManager.WiFi_Pass();
   
   //Remove this line if you do not want to see WiFi password printed
   Serial.println("Stored: SSID = " + Router_SSID + ", Pass = " + Router_Pass);
@@ -355,10 +354,10 @@ void getPrefs() {
 	preferences.begin("WiFiCred", false);
 	bool hasPref = preferences.getBool("valid", false);
 	if (hasPref) {
-		ssidPrim = preferences.getString("ssidPrim","");
-		ssidSec = preferences.getString("ssidSec","");
-		pwPrim = preferences.getString("pwPrim","");
-		pwSec = preferences.getString("pwSec","");
+		String ssidPrim = preferences.getString("ssidPrim","");
+		String ssidSec = preferences.getString("ssidSec","");
+		String pwPrim = preferences.getString("pwPrim","");
+		String pwSec = preferences.getString("pwSec","");
 
 		if (ssidPrim.equals("") 
 				|| pwPrim.equals("")
