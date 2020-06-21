@@ -89,22 +89,25 @@ int sample_index = 0;
 
 WiFiClient espClient;
 HTTPClient client;
+BLECallbacks bleCallbacks;
+String bleGetWifiStatus();
+void blePreferencesChanged();
+void WifiConnect(String Router_SSID = "", String Router_Pass = "");
 
 void setup() {
   // put your setup code here, to run once:
   pinMode(sensor, OUTPUT);
   Serial.begin(115200);
 
+  bleCallbacks.preferencesChanged = blePreferencesChanged;
+  bleCallbacks.getWifiStatus = bleGetWifiStatus;
+  setCallbacks(&bleCallbacks);
   initBLE();
 
   Serial.println("starting wifiManager");
   
   // Now go back to our normal connection.
   setState(WIFI_CONNECTING);
-  
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
 
   ntpClock.setup();
 
@@ -223,7 +226,7 @@ void setState(States newState) {
   switch (newState) 
   {
   case WIFI_CONNECTING:
-    WifiConnect();
+    getPrefsAndConnect();
     break;
   case WIFI_WAITING_CREDENTIALS:
     //it starts an access point 
@@ -297,9 +300,9 @@ void read_all()
 
       // only print header first time
       if (header) {
-        Serial.println(F("-------------Mass -----------    ------------- Number --------------   -Average-"));
-        Serial.println(F("     Concentration [μg/m3]             Concentration [#/cm3]             [μm]"));
-        Serial.println(F("P1.0\tP2.5\tP4.0\tP10\tP0.5\tP1.0\tP2.5\tP4.0\tP10\tPartSize\n"));
+        Serial.println(F("------------- Number --------------"));
+        Serial.println(F("     Concentration [#/cm3]"));
+        Serial.println(F("P2.5\tP10\n"));
         header = false;
       }
       SensorValues sv(n, pm10, pm25);
@@ -309,10 +312,19 @@ void read_all()
   if (!sds011.query_data_auto_async(pm_tablesize, pm25_table, pm10_table)) {
       Serial.println("measurement capture start failed");
   }
-
 }
 
-void WifiConnect()
+String bleGetWifiStatus() {
+  if (currentState == WIFI_WAITING_CREDENTIALS || WiFi.status() != WL_CONNECTED) {
+    return "";
+  } else if (WiFi.status() != WL_CONNECTED) {
+    return WiFi.localIP().toString();
+  }
+  return "";
+}
+
+
+void WifiConnect(String Router_SSID, String Router_Pass)
 {
   //Local intialization. Once its business is done, there is no need to keep it around
   String ssid;
@@ -320,8 +332,10 @@ void WifiConnect()
   // We can't use WiFi.SSID() in ESP32as it's only valid after connected. 
   // SSID and Password stored in ESP32 wifi_ap_record_t and wifi_config_t are also cleared in reboot
   // Have to create a new function to store in EEPROM/SPIFFS for this purpose
-  String Router_SSID = ESP_wifiManager.WiFi_SSID();
-  String Router_Pass = ESP_wifiManager.WiFi_Pass();
+  if (Router_SSID == "") {
+    Router_SSID = ESP_wifiManager.WiFi_SSID();
+    Router_Pass = ESP_wifiManager.WiFi_Pass();
+  }
   
   //Remove this line if you do not want to see WiFi password printed
   Serial.println("Stored: SSID = " + Router_SSID + ", Pass = " + Router_Pass);
@@ -346,10 +360,16 @@ void WifiConnect()
     Serial.println(Router_SSID);
   
     WiFi.begin(Router_SSID.c_str(), Router_Pass.c_str());
+    Serial.println("WiFi connected");
+    Serial.println("IP address: ");
+    Serial.println(WiFi.localIP());
   }
 }
 
-void getPrefs() {
+void blePreferencesChanged() {
+  setState(WIFI_CONNECTING);
+}
+void getPrefsAndConnect() {
   Preferences preferences;
 	preferences.begin("WiFiCred", false);
 	bool hasPref = preferences.getBool("valid", false);
@@ -364,11 +384,13 @@ void getPrefs() {
 				/* || ssidSec.equals("")
 				|| pwSec.equals("") */) {
 			Serial.println("Found preferences but credentials are invalid");
+      WifiConnect();
 		} else {
 			Serial.println("Read from preferences:");
 			Serial.println("primary SSID: "+ssidPrim+" password: "+pwPrim);
 			Serial.println("secondary SSID: "+ssidSec+" password: "+pwSec);
 			hasCredentials = true;
+      WifiConnect(ssidPrim, pwPrim);
 		}
 	} else {
 		Serial.println("Could not find preferences, need send data over BLE");
