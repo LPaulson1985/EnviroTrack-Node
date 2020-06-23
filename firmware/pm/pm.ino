@@ -177,11 +177,13 @@ void loop() {
       Serial.print("connecting. Status: ");
       Serial.println(ESP_wifiManager.getStatus(WiFi.status()));
     }
+  } else if (currentState == READING) {
+    sds011.perform_work();
   }
   if (millis() < nextStateTime && currentState != READING) return;
   switch (currentState) {
     case IDLE:
-      Serial.println("Transition to Reading");
+      Serial.println("Transition to Warmup");
       if (sds011.set_sleep(false))
         Serial.println(F("Measurement started"));
       else {
@@ -190,8 +192,11 @@ void loop() {
     }
       setState(WARMUP);
       break;
-    case WARMUP: setState(READING); break;
+    case WARMUP: 
+      Serial.println("Transition to Reading");
+      setState(READING); break;
     case READING: {
+      Serial.println("Transition to Idle");
       setState(IDLE);
       esp_wifi_stop();
       sds011.set_sleep(true);
@@ -236,7 +241,9 @@ void setState(States newState) {
     else 
       Serial.println("Config portal started :)"); 
     break;
-  
+  case READING:
+    read_all();
+    break;
   default:
     break;
   }
@@ -360,7 +367,7 @@ void WifiConnect(String Router_SSID, String Router_Pass)
     Serial.println(Router_SSID);
   
     WiFi.begin(Router_SSID.c_str(), Router_Pass.c_str());
-    Serial.println("WiFi connected");
+    Serial.println("WiFi connecting");
     Serial.println("IP address: ");
     Serial.println(WiFi.localIP());
   }
