@@ -8,7 +8,7 @@
 #include <ESP_WiFiManager.h>  // Install ESP_WiFiManager from Khoi Hoang
 #include <WiFi.h>             // built in
 #include <HTTPClient.h>       // Built In
-#include <ArduinoOTA.h>       // Install ArdionoOTA
+#include <ArduinoOTA.h>       // Install ArduinoOTA
 #include <deque>              // built in
 #include <Preferences.h>      // Install Preferences
 #include <Sds011.h>           // Install esp_sds011
@@ -184,12 +184,6 @@ void loop() {
   switch (currentState) {
     case IDLE:
       Serial.println("Transition to Warmup");
-      if (sds011.set_sleep(false))
-        Serial.println(F("Measurement started"));
-      else {
-        Serial.println("Could NOT start measurement");
-      setState(ERRORSTATE);
-    }
       setState(WARMUP);
       break;
     case WARMUP: 
@@ -240,6 +234,14 @@ void setState(States newState) {
       Serial.println("Failed to start config portal.");
     else 
       Serial.println("Config portal started :)"); 
+    break;
+  case WARMUP:
+    if (sds011.set_sleep(false))
+      Serial.println(F("Measurement started"));
+    else {
+      Serial.println("Could NOT start measurement");
+      setState(ERRORSTATE);
+    }
     break;
   case READING:
     read_all();
