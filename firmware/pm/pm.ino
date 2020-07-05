@@ -11,7 +11,7 @@
 #include <ArduinoOTA.h>       // Install ArdionoOTA
 #include <deque>              // built in
 #include <Preferences.h>      // Install Preferences
-#include <Sds011.h>           // Install Sds011
+#include <Sds011.h>           // Install esp_sds011
 
 #include "bluetooth.h"
 #include "config.h"
