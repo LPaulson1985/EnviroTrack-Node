@@ -19,7 +19,7 @@
 using namespace ace_time;
 using namespace ace_time::clock;
 
-static BasicZoneProcessor pacificProcessor;
+static BasicZoneProcessor utcProcessor;
 static NtpClock ntpClock;
 SystemClockLoop systemClock(&ntpClock, nullptr /*backup*/);
 
@@ -254,12 +254,11 @@ void setState(States newState) {
 
 void send_data(SensorValues val) {
   acetime_t epochSeconds = systemClock.getNow();
-  auto pacificTz = TimeZone::forZoneInfo(&zonedb::kZoneAmerica_Los_Angeles,
-    &pacificProcessor);
-  auto pacificTime = ZonedDateTime::forEpochSeconds(epochSeconds, pacificTz);
+  auto utcTz = TimeZone::forUtc();
+  auto utcTime = OffsetDateTime::forEpochSeconds(epochSeconds, utcTz.getStdOffset());
   char timeBuf[100];
   CStringBuilder timePrint(timeBuf, sizeof(timeBuf));
-  pacificTime.printTo(timePrint);
+  utcTime.printTo(timePrint);
   // Single reading, and an array of readings
   DynamicJsonDocument readingsDoc(1024);
   JsonArray readings = readingsDoc.to<JsonArray>();
