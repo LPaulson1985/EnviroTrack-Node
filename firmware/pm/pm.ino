@@ -80,7 +80,7 @@ uint32_t nextStateTime = 0;
 const uint8_t sensor = 4;
 
 const float vcesat = 0.3;
-uint32_t sleepTimeUS = 10 * 60 * 1e6;
+uint32_t sleepTimeUS = 1 * 60 * 1e6;
 
 const int NUM_SAMPLES = 32;
 std::deque<uint16_t> samples;
@@ -180,7 +180,8 @@ void loop() {
   } else if (currentState == READING) {
     sds011.perform_work();
   }
-  if (millis() < nextStateTime && currentState != READING) return;
+  
+  if (millis() < nextStateTime) return;
   switch (currentState) {
     case IDLE:
       Serial.println("Transition to Warmup");
@@ -278,10 +279,7 @@ void send_data(SensorValues val) {
   } else {
     Serial.println("Failed to connect to server");
   }
-  
-  Serial.print("Transition to IDLE, deep sleep for");
-  Serial.print(sleepTimeUS);
-  Serial.println("us");
+  client.end();
 }
 
 /**
@@ -307,13 +305,6 @@ void read_all()
       }
       Serial.println("End Handling SDS011 query data");
 
-      // only print header first time
-      if (header) {
-        Serial.println(F("------------- Number --------------"));
-        Serial.println(F("     Concentration [#/cm3]"));
-        Serial.println(F("P2.5\tP10\n"));
-        header = false;
-      }
       SensorValues sv(n, pm10, pm25);
       send_data(sv);
   });
