@@ -1,17 +1,17 @@
-#include <CStringBuilder.h>
+#include <CStringBuilder.h>   // Install StreamLib
 
 #define ACE_TIME_NTP_CLOCK_DEBUG 1
-#include <AceTime.h>
+#include <AceTime.h>          // Install AceTime
 
-#include <ArduinoJson.h>
-#include <SoftwareSerial.h> // for circular_queue
-#include <ESP_WiFiManager.h>
-#include <WiFi.h>
-#include <HTTPClient.h>
-#include <ArduinoOTA.h>
-#include <deque>
-#include <Preferences.h>
-#include <Sds011.h>
+#include <ArduinoJson.h>      // Install ArduinoJson
+#include <SoftwareSerial.h>   // for circular_queue, install EspSoftwareSerial
+#include <ESP_WiFiManager.h>  // Install ESP_WiFiManager
+#include <WiFi.h>             // built in
+#include <HTTPClient.h>       // Built In
+#include <ArduinoOTA.h>       // Install ArdionoOTA
+#include <deque>              // built in
+#include <Preferences.h>      // Install Preferences
+#include <Sds011.h>           // Install Sds011
 
 #include "bluetooth.h"
 #include "config.h"
